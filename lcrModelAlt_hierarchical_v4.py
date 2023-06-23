@@ -118,6 +118,8 @@ def main(train_path, test_path, accuracyOnt, test_size, remaining_size, learning
         alpha_fw, alpha_bw = None, None
         prob, alpha_fw, alpha_bw, alpha_t_l, alpha_t_r = lcr_rot(inputs_fw, inputs_bw, sen_len, sen_len_bw, target, tar_len, keep_prob1, keep_prob2, l2, 'all')
 
+        print(y)
+        print(prob)
         loss = loss_func(y, prob)
         acc_num, acc_prob = acc_func(y, prob)
         global_step = tf.Variable(0, name='tr_global_step', trainable=False)

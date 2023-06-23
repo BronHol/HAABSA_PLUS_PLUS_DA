@@ -25,24 +25,30 @@ def load_word_id_mapping(word_id_file, encoding='utf8'):
     return word_to_id
 
 
-def load_w2v(w2v_file, embedding_dim, is_skip=False):
-    fp = open(w2v_file)
-    if is_skip:
-        fp.readline()
-    w2v = []
-    word_dict = dict()
-    # [0,0,...,0] represent absent words
-    w2v.append([0.] * embedding_dim)
-    cnt = 0
-    for line in fp:
-        cnt += 1
-        line = line.split()
-        # line = line.split()
-        if len(line) != embedding_dim + 1:
-            print('a bad word embedding: {}'.format(line[0]))
-            continue
-        w2v.append([float(v) for v in line[1:]])
-        word_dict[line[0]] = cnt
+def load_w2v(w2v_file, embedding_dim, is_skip=True):
+    with open(w2v_file, "r") as fp:
+        if is_skip:
+            fp.readline()
+        w2v = []
+        word_dict = dict()
+        #print(fp.readline(1))
+        # [0,0,...,0] represent absent words
+        w2v.append([0.] * embedding_dim)
+        cnt = 0
+        for line in fp:
+            if line:
+                cnt += 1
+                #print(f"line before split {line}")
+                line = line.split()
+                #print(f"line after split {line}")
+                # line = line.split()
+                #print(f"loadw2v {len(line)}")
+                if len(line) != embedding_dim + 1:
+                    print('a bad word embedding: {}'.format(line[0]))
+                    continue
+                w2v.append([float(v) for v in line[1:]])
+                word_dict[line[0]] = cnt
+    #print(f"count= {cnt}")
     w2v = np.asarray(w2v, dtype=np.float32)
     w2v = np.row_stack((w2v, np.sum(w2v, axis=0) / cnt))
     print(np.shape(w2v))
@@ -104,8 +110,10 @@ def change_y_to_onehot(y):
 
 def load_inputs_twitter(input_file, word_id_file, sentence_len, type_='', is_r=True, target_len=10, encoding='utf8'):
     if type(word_id_file) is str:
+        print('optie 1')
         word_to_id = load_word_id_mapping(word_id_file)
     else:
+        print('optie 2')
         word_to_id = word_id_file
     print('load word-to-id done!')
 

@@ -36,7 +36,7 @@ temp_filenames_base = ['/data/temporaryData/temp_BERT/BERT_till65.txt','/data/te
 
 count_sentences=0
 with open('BERT_Large_2016embedding.txt','w') as outf:
-    for tfname in temp_filenames_Large:
+    for tfname in temp_filenames_base:
         print(tfname)
         with open(tfname) as infile:
             for line in infile:

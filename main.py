@@ -4,11 +4,11 @@
 # https://github.com/NUSTM/ABSC
 
 import tensorflow as tf
-import cabascModel
-import lcrModel
-import lcrModelInverse
-import lcrModelAlt
-import svmModel
+# import cabascModel
+#import lcrModel
+#import lcrModelInverse
+#import lcrModelAlt
+#import svmModel
 from OntologyReasoner import OntReasoner
 from loadData import *
 
@@ -29,6 +29,7 @@ def main(_):
     loadData         = False        # only for non-contextualised word embeddings.
                                     #   Use prepareBERT for BERT (and BERT_Large) and prepareELMo for ELMo
     useOntology      = True         # When run together with runLCRROTALT, the two-step method is used
+    shortCutOnt      = False
     runLCRROTALT     = False
 
     runSVM           = False
@@ -37,10 +38,10 @@ def main(_):
     runLCRROTINVERSE = False
     weightanalysis   = False
 
-    runLCRROTALT_v1     = True
+    runLCRROTALT_v1     = False
     runLCRROTALT_v2     = False
     runLCRROTALT_v3     = False
-    runLCRROTALT_v4     = False
+    runLCRROTALT_v4     = True
 
     #determine if backupmethod is used
     if runCABASC or runLCRROT or runLCRROTALT or runLCRROTINVERSE or runSVM or runLCRROTALT_v1 or runLCRROTALT_v2 or runLCRROTALT_v3 or runLCRROTALT_v4:
@@ -69,16 +70,18 @@ def main(_):
             print(test[0])
         print('train acc = {:.4f}, test acc={:.4f}, remaining size={}'.format(accuracyOnt, accuracyOnt, remaining_size))
     else:
-        if runSVM == True:
-            test = FLAGS.test_svm_path
+        if shortCutOnt == True:
+            accuracyOnt = 0.8682
+            remaining_size = 248
+            test = FLAGS.remaining_test_path
         else:
             test = FLAGS.test_path
 
     # LCR-Rot-hop model
-    if runLCRROTALT == True:
-       _, pred2, fw2, bw2, tl2, tr2 = lcrModelAlt.main(FLAGS.train_path, test, accuracyOnt, test_size,
-                                                        remaining_size)
-       tf.reset_default_graph()
+   # if runLCRROTALT == True:
+    #   _, pred2, fw2, bw2, tl2, tr2 = lcrModelAlt.main(FLAGS.train_path, test, accuracyOnt, test_size,
+      #                                                  remaining_size)
+     #  tf.reset_default_graph()
 
     if runLCRROTALT_v1 == True:
        _, pred2, fw2, bw2, tl2, tr2 = lcrModelAlt_hierarchical_v1.main(FLAGS.train_path, test, accuracyOnt, test_size,
