@@ -7,31 +7,41 @@ import sys
 
 FLAGS = tf.app.flags.FLAGS
 #general variables
-tf.app.flags.DEFINE_string('embedding_type','BERT','can be: glove, word2vec-cbow, word2vec-SG, fasttext, BERT, BERT_Large, ELMo')
-tf.app.flags.DEFINE_integer("year",2016, "year data set [2014]")
-tf.app.flags.DEFINE_string('da_type','none','type of data augmentation method (can be: none, EDA-original, BERT, BERT_prepend)') # EDA-adjusted is also implemented, but not considered in this research
+tf.app.flags.DEFINE_string('embedding_type', 'BERT','can be: glove, word2vec-cbow, word2vec-SG, fasttext, BERT, BERT_Large, ELMo')
+tf.app.flags.DEFINE_integer("year", 2015, "year data set [2015/2016]")
+tf.app.flags.DEFINE_string('da_type', 'none','type of data augmentation method (can be: none, EDA-adjusted, BERT, C_BERT, BERT_prepend)') # EDA-adjusted is also implemented, but not considered in this research
 tf.app.flags.DEFINE_integer('embedding_dim', 768, 'dimension of word embedding')
 tf.app.flags.DEFINE_integer('batch_size', 20, 'number of example per batch')
 tf.app.flags.DEFINE_integer('n_hidden', 300, 'number of hidden unit')
-tf.app.flags.DEFINE_float('learning_rate', 0.07, 'learning rate')
 tf.app.flags.DEFINE_integer('n_class', 3, 'number of distinct class')
 tf.app.flags.DEFINE_integer('max_sentence_len', 80, 'max number of tokens per sentence')
 tf.app.flags.DEFINE_integer('max_doc_len', 20, 'max number of tokens per sentence')
-tf.app.flags.DEFINE_float('l2_reg', 0.00001, 'l2 regularization')
 tf.app.flags.DEFINE_float('random_base', 0.01, 'initial random base')
 tf.app.flags.DEFINE_integer('display_step', 4, 'number of test display step')
-tf.app.flags.DEFINE_integer('n_iter', 200, 'number of train iter')
-tf.app.flags.DEFINE_float('keep_prob1', 0.5, 'dropout keep prob')
-tf.app.flags.DEFINE_float('keep_prob2', 0.5, 'dropout keep prob')
+tf.app.flags.DEFINE_integer('n_iter', 100, 'number of train iter')
 tf.app.flags.DEFINE_string('t1', 'last', 'type of hidden output')
 tf.app.flags.DEFINE_string('t2', 'last', 'type of hidden output')
 tf.app.flags.DEFINE_integer('n_layer', 3, 'number of stacked rnn')
 tf.app.flags.DEFINE_string('is_r', '1', 'prob')
 tf.app.flags.DEFINE_integer('max_target_len', 19, 'max target length')
 
+################################################################################################################################
+# HYPERPARAMETERS TUNED IN THIS RESEARCH (FOR REPRODUCING RESEARCH RESULTS, USE THE HYPERPARAMETERS AS SPECIFIED IN README.MD) #
+################################################################################################################################
+# order of hyperparameters: learning_rate, keep_prob, momentum, l2, batch_size
+tf.app.flags.DEFINE_float('learning_rate', 0.08, 'learning rate')
+tf.app.flags.DEFINE_float('keep_prob1', 0.6000000000000001, 'dropout keep prob for the hidden layers of the lcr-rot mode (tuned)')
+tf.app.flags.DEFINE_float('keep_prob2', 0.6000000000000001, 'dropout keep prob')
+tf.app.flags.DEFINE_float('momentum', 0.9, 'momentum')
+tf.app.flags.DEFINE_float('l2_reg', 0.01, 'l2 regularization')
+
+tf.app.flags.DEFINE_boolean('do_create_raw_files', True, 'whether raw files have to be created, always true when running model for first time') # these three booleans should genreally have the same value (except when troubleshooting)
+tf.app.flags.DEFINE_boolean('do_create_augmentation_files', True, 'whether the augmentation file should be made, always true for first time using a DA method')
+tf.app.flags.DEFINE_string('augmentation_file_path', 'data/programGeneratedData/'+FLAGS.da_type+'_augmented_data' + str(FLAGS.year)+'.txt', 'augmented train file')
+
 # raw data files
 tf.app.flags.DEFINE_string('raw_data_dir', 'data/programGeneratedData/raw_data/', 'folder contataining raw data')
-tf.app.flags.DEFINE_string('raw_data_file', FLAGS.raw_data_dir + FLAGS.da_type + '_' +'raw_data'+str(FLAGS.year)+'.txt', 'raw data file for retrieving BERT embeddings, contains both train and test data')
+tf.app.flags.DEFINE_string('complete_data_file', FLAGS.raw_data_dir + FLAGS.da_type + '_' +'raw_data'+str(FLAGS.year)+'.txt', 'raw data file for retrieving BERT embeddings, contains both train and test data')
 tf.app.flags.DEFINE_string('raw_data_train', FLAGS.raw_data_dir + FLAGS.da_type + '_' + 'raw_data'+str(FLAGS.year)+'_train.txt', 'file raw train data is written to')
 tf.app.flags.DEFINE_string('raw_data_test', FLAGS.raw_data_dir + FLAGS.da_type + '_' + 'raw_data'+str(FLAGS.year)+'_test.txt', 'file raw test data is written to')
 tf.app.flags.DEFINE_string('raw_data_augmented', FLAGS.raw_data_dir + FLAGS.da_type + '_' + 'raw_data'+str(FLAGS.year)+'_augm.txt', 'file raw augmented data is written to')
@@ -39,13 +49,13 @@ tf.app.flags.DEFINE_string('raw_data_augmented', FLAGS.raw_data_dir + FLAGS.da_t
 # traindata, testdata and embeddings, train path aangepast met ELMo
 tf.app.flags.DEFINE_string("train_path_ont", "data/programGeneratedData/GloVetraindata"+str(FLAGS.year)+".txt", "train data path for ont")
 tf.app.flags.DEFINE_string("test_path_ont", "data/programGeneratedData/GloVetestdata"+str(FLAGS.year)+".txt", "formatted test data path")
-#tf.app.flags.DEFINE_string("train_path", "data/programGeneratedData/" + str(FLAGS.embedding_type) +str(FLAGS.embedding_dim)+'traindata'+str(FLAGS.year)+".txt", "train data path")
-#tf.app.flags.DEFINE_string("test_path", "data/programGeneratedData/" + str(FLAGS.embedding_type) + str(FLAGS.embedding_dim)+'testdata'+str(FLAGS.year)+str(FLAGS.da_type)+".txt", "formatted test data path")
-tf.app.flags.DEFINE_string("train_path", 'data/programGeneratedData/' + str(FLAGS.embedding_dim) + 'traindata' + str(FLAGS.year) + 'BERT.txt', "train data path")
-tf.app.flags.DEFINE_string("test_path", 'data/programGeneratedData/' + str(FLAGS.embedding_dim) + 'testdata' + str(FLAGS.year) + 'BERT.txt', "formatted test data path")
+tf.app.flags.DEFINE_string("train_path", "data/programGeneratedData/" + str(FLAGS.embedding_type) +str(FLAGS.embedding_dim)+'traindata'+str(FLAGS.year)+'_'+str(FLAGS.da_type)+".txt", "train data path")
+tf.app.flags.DEFINE_string("test_path", "data/programGeneratedData/" + str(FLAGS.embedding_type) + str(FLAGS.embedding_dim)+'testdata'+str(FLAGS.year)+'_'+str(FLAGS.da_type)+".txt", "formatted test data path")
+#tf.app.flags.DEFINE_string("train_path", 'data/programGeneratedData/' + str(FLAGS.embedding_dim) + 'traindata' + str(FLAGS.year) + 'BERT.txt', "train data path")
+#tf.app.flags.DEFINE_string("test_path", 'data/programGeneratedData/' + str(FLAGS.embedding_dim) + 'testdata' + str(FLAGS.year) + 'BERT.txt', "formatted test data path")
 
-#tf.app.flags.DEFINE_string("embedding_path", "data/programGeneratedData/" + str(FLAGS.embedding_type) + str(FLAGS.embedding_dim)+'embedding'+str(FLAGS.year)+".txt", "pre-trained glove vectors file path")
-tf.app.flags.DEFINE_string("embedding_path", "data/programGeneratedData/BERT_base.txt", "pre-trained glove vectors file path")
+tf.app.flags.DEFINE_string("embedding_path", "data/programGeneratedData/" + str(FLAGS.embedding_type) + str(FLAGS.embedding_dim)+'embedding'+str(FLAGS.year)+ '_'+ str(FLAGS.da_type)+".txt", "pre-trained glove vectors file path")
+#tf.app.flags.DEFINE_string("embedding_path", "data/programGeneratedData/BERT_base.txt", "pre-trained glove vectors file path")
 
 tf.app.flags.DEFINE_string("remaining_test_path_ELMo", "data/programGeneratedData/"+str(FLAGS.embedding_dim)+'remainingtestdata'+str(FLAGS.year)+"ELMo.txt", "only for printing")
 tf.app.flags.DEFINE_string("remaining_test_path", "data/programGeneratedData/"+str(FLAGS.embedding_dim)+'remainingtestdata'+str(FLAGS.year)+".txt", "formatted remaining test data path after ontology")
@@ -55,6 +65,18 @@ tf.app.flags.DEFINE_string('bert_embedding_path', 'data/programGeneratedData/ber
 tf.app.flags.DEFINE_string('temp_dir', 'data/programGeneratedData/temp/', 'directory for temporary files')
 tf.app.flags.DEFINE_string('temp_bert_dir', FLAGS.temp_dir+'bert/', 'directory for temporary BERT files')
 
+# locations for saving BERT finetuning data/external_data
+tf.app.flags.DEFINE_string('finetune_train_file', 'data/programGeneratedData/finetuning_data/' + FLAGS.da_type + '_' + str(FLAGS.year)+'_finetune_train.txt', 'file finetuning train data is written to')
+tf.app.flags.DEFINE_string('finetune_eval_file', 'data/programGeneratedData/finetuning_data/' + FLAGS.da_type + '_' + str(FLAGS.year)+'_finetune_eval.txt', 'file finetuning evaluation data is written to')
+tf.app.flags.DEFINE_string('finetune_model_dir', 'data/programGeneratedData/finetuning_data/' + FLAGS.da_type + '_finetune_model/', 'folder containing BERT model after finetuning')
+
+# Data augmentation vars
+tf.app.flags.DEFINE_string("EDA_type", "original", "type of eda (original or adjusted)")
+tf.app.flags.DEFINE_integer("EDA_deletion", 1, "number of deletion augmentations")
+tf.app.flags.DEFINE_integer("EDA_replacement", 1, "number of replacement augmentations")
+tf.app.flags.DEFINE_integer("EDA_insertion", 1, "number of insertion augmentations")
+tf.app.flags.DEFINE_integer("EDA_swap", 1, "number of swap augmentations") # in adjusted mode, higher number means more swaps within the same category
+tf.app.flags.DEFINE_float("EDA_pct", .2, "percentage of words affected by augmentation") # in adjusted mode EDA_swap not affected
 
 #svm traindata, svm testdata
 tf.app.flags.DEFINE_string("train_svm_path", "data/programGeneratedData/"+str(FLAGS.embedding_dim)+'trainsvmdata'+str(FLAGS.year)+".txt", "train data path")

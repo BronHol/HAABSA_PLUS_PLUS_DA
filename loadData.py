@@ -2,44 +2,95 @@ from dataReader2016 import read_data_2016
 from sklearn.model_selection import StratifiedKFold
 import numpy as np
 import random
+import os
+import shutil
 
-def loadDataAndEmbeddings(config,loadData):
+def loadDataAndEmbeddings(config,loadData, use_eda, adjusted, use_bert, use_bert_prepend, use_c_bert):
 
     FLAGS = config
 
     if loadData == True:
-        source_count, target_count = [], []
-        source_word2idx, target_phrase2idx = {}, {}
 
-        print('reading training data...')
-        train_data = read_data_2016(FLAGS.train_data, source_count, source_word2idx, target_count, target_phrase2idx, FLAGS.train_path)
-        print('reading test data...')
-        test_data = read_data_2016(FLAGS.test_data, source_count, source_word2idx, target_count, target_phrase2idx, FLAGS.test_path)
+        if FLAGS.do_create_raw_files:
+            # check whether files exist already, else create raw data files
+            if os.path.isfile(FLAGS.raw_data_augmented):
+                raise Exception('File ' + FLAGS.raw_data_augmented + ' already exists. Delete file and run again.')
+            if os.path.isfile(FLAGS.raw_data_train):
+                raise Exception('File ' + FLAGS.raw_data_train + ' already exists. Delete file and run again.')
+            elif os.path.isfile(FLAGS.raw_data_test):
+                raise Exception('File ' + FLAGS.raw_data_test + ' already exists. Delete file and run again.')
+            # elif os.path.isfile(FLAGS.raw_data_file):
+            # raise Exception('File '+FLAGS.raw_data_file+' already exists. Delete file and run again.')
+            else:
+                # convert xml data to raw text data. If use_eda==True, also augment data
+                source_count, target_count = [], []
+                source_word2idx, target_phrase2idx = {}, {}
+                print('reading training data...')
+                train_data = read_data_2016(FLAGS.train_data, source_count, source_word2idx, target_count,
+                                            target_phrase2idx, FLAGS.train_path)
+                print('reading test data...')
+                test_data = read_data_2016(FLAGS.test_data, source_count, source_word2idx, target_count,
+                                           target_phrase2idx, FLAGS.test_path)
+        if FLAGS.do_create_augmentation_files:
+            train_raw_path = FLAGS.train_path
+            augment_path = FLAGS.augmentation_file_path
+            # if BERT is used for DA, create new sentences using BERT
+            if use_bert:
+                import bertAugmentation
+                bertAugmentation.file_maker(train_raw_path, augment_path)
 
+            # if BERT-prepend is used for DA, create new sentences using BERT-prepend
+            if use_bert_prepend:
+                import bertPrependAugmentation
+                bertPrependAugmentation.file_maker_prepend(train_raw_path, augment_path)
+
+            # if C-BERT is used for DA, create new sentences using BERT-prepend
+            if use_c_bert:
+                import conditionalAugmentation
+                conditionalAugmentation.file_maker_conditional(train_raw_path, augment_path)
+
+            # if EDA is used for DA, create new sentences using BERT-prepend
+            if use_eda:
+                import eda
+                eda.file_maker_eda(train_raw_path, augment_path, FLAGS, adjusted=adjusted)
+
+            # create file containing both raw train and test data; used for BERT embedings
+            with open(FLAGS.complete_data_file, 'wb') as out_file:
+                for file in [augment_path, FLAGS.test_path]:
+                    with open(file, 'rb') as in_file:
+                        shutil.copyfileobj(in_file, out_file)
+
+        print('creating embeddings...')
+        print('lengte source_word2idx=' + str(len(source_word2idx)))
         wt = np.random.normal(0, 0.05, [len(source_word2idx), 300])
         word_embed = {}
         count = 0.0
-        with open(FLAGS.pretrain_file, 'r',encoding="utf8") as f:
+        with open(FLAGS.pretrain_file, 'r', encoding="utf8") as f:
             for line in f:
                 content = line.strip().split()
                 if content[0] in source_word2idx:
                     wt[source_word2idx[content[0]]] = np.array(list(map(float, content[1:])))
                     count += 1
-                    
+            print('count =' + str(count))
+
         print('finished embedding context vectors...')
 
-        #print data to txt file
-        outF= open(FLAGS.embedding_path, "w")
-        for i, word in enumerate(source_word2idx):
-            outF.write(word)
-            outF.write(" ")
-            outF.write(' '.join(str(w) for w in wt[i]))
-            outF.write("\n")
-        outF.close()
-        print((len(source_word2idx)-count)/len(source_word2idx)*100)
-        
-        return train_data[0], test_data[0], train_data[4], test_data[4] #train_size, test_size, train_polarity_vector, test_polarity_vector
+        #not used because we make embedding files via getBert and prepareBert
+        # print data to txt file
+        #outF = open(FLAGS.embedding_path, "w", encoding='utf-8')
+        #for i, word in enumerate(source_word2idx):
+         #   outF.write(word)
+         #   outF.write(" ")
+         #   outF.write(' '.join(str(w) for w in wt[i]))
+         #   outF.write("\n")
+        #outF.close()
+        #print('wrote the embedding vectors to file')
+        #print((len(source_word2idx) - count) / len(source_word2idx) * 100)
 
+        # get statistic properties from txt file
+        train_size, train_polarity_vector = getStatsFromFile(FLAGS.train_path)
+        test_size, test_polarity_vector = getStatsFromFile(FLAGS.test_path)
+        return train_size, test_size, train_polarity_vector, test_polarity_vector
     else:
         #get statistic properties from txt file
         train_size, train_polarity_vector = getStatsFromFile(FLAGS.train_path)
@@ -79,20 +130,6 @@ def loadHyperData (config,loadData,percentage=0.8):
             lines = fin.readlines()
 
             chunked = [lines[i:i+3] for i in range(0, len(lines), 3)]
-            random.shuffle(chunked)
-            numlines = int(len(chunked)*percentage)
-            for chunk in chunked[:numlines]:
-                for line in chunk:
-                    foutBig.write(line)
-            for chunk in chunked[numlines:]:
-                for line in chunk:
-                    foutSmall.write(line)
-        with open(FLAGS.train_svm_path, 'r') as fin, \
-        open(FLAGS.hyper_svm_train_path, 'w') as foutBig, \
-        open(FLAGS.hyper_svm_eval_path, 'w') as foutSmall:
-            lines = fin.readlines()
-
-            chunked = [lines[i:i+4] for i in range(0, len(lines), 4)]
             random.shuffle(chunked)
             numlines = int(len(chunked)*percentage)
             for chunk in chunked[:numlines]:

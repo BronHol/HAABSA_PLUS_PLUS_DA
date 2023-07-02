@@ -26,7 +26,7 @@ def load_word_id_mapping(word_id_file, encoding='utf8'):
 
 
 def load_w2v(w2v_file, embedding_dim, is_skip=True):
-    with open(w2v_file, "r") as fp:
+    with open(w2v_file, "r", encoding='utf-8') as fp:
         if is_skip:
             fp.readline()
         w2v = []
@@ -51,6 +51,7 @@ def load_w2v(w2v_file, embedding_dim, is_skip=True):
     #print(f"count= {cnt}")
     w2v = np.asarray(w2v, dtype=np.float32)
     w2v = np.row_stack((w2v, np.sum(w2v, axis=0) / cnt))
+    w2v = w2v.astype(np.float32)
     print(np.shape(w2v))
     word_dict['$t$'] = (cnt + 1)
     # w2v -= np.mean(w2v, axis=0)
@@ -110,10 +111,8 @@ def change_y_to_onehot(y):
 
 def load_inputs_twitter(input_file, word_id_file, sentence_len, type_='', is_r=True, target_len=10, encoding='utf8'):
     if type(word_id_file) is str:
-        print('optie 1')
         word_to_id = load_word_id_mapping(word_id_file)
     else:
-        print('optie 2')
         word_to_id = word_id_file
     print('load word-to-id done!')
 

@@ -26,10 +26,11 @@ import lcrModelAlt_hierarchical_v4
 
 # main function
 def main(_):
-    loadData         = False        # only for non-contextualised word embeddings.
-                                    #   Use prepareBERT for BERT (and BERT_Large) and prepareELMo for ELMo
-    useOntology      = True         # When run together with runLCRROTALT, the two-step method is used
-    shortCutOnt      = False
+    loadData         = False        # Only True for making data augmentations or raw_data files
+                                    # Use TorchBert in Google Colab to generate the BERT embeddings for every word
+                                    # Use prepare_bert for making train and test data sets
+    useOntology      = False        # When run together with runLCRROTALT, the two-step method is used
+    shortCutOnt      = True         # Only possible when last run was for same year
     runLCRROTALT     = False
 
     runSVM           = False
@@ -48,9 +49,39 @@ def main(_):
         backup = True
     else:
         backup = False
-    
+
+    da_methods = FLAGS.da_type.split('-')
+    da_type = da_methods[0]
+    adjusted = False
+    if da_type == 'EDA':
+        use_eda = True
+        if len(da_methods) > 1:
+            if da_methods[1] == 'adjusted':
+                adjusted = True
+            else:
+                raise Exception('The EDA type used in FLAGS.da_type.split does not exist. Please correct flag value.')
+        else:
+            raise Exception('The EDA type to use is not specified. Please complete flag value.')
+    else:
+        use_eda = False
+
+    # determine whether bert should be used for DA
+    use_bert = False
+    if FLAGS.da_type == 'BERT':
+        use_bert = True
+
+    # determine whether bert-prepend should be used for DA
+    use_bert_prepend = False
+    if FLAGS.da_type == 'BERT_prepend':
+        use_bert_prepend = True
+
+    # determine whether c-bert should be used for DA
+    use_c_bert = False
+    if FLAGS.da_type == 'C_BERT':
+        use_c_bert = True
+
     # retrieve data and wordembeddings
-    train_size, test_size, train_polarity_vector, test_polarity_vector = loadDataAndEmbeddings(FLAGS, loadData)
+    train_size, test_size, train_polarity_vector, test_polarity_vector = loadDataAndEmbeddings(FLAGS, loadData, use_eda, adjusted, use_bert, use_bert_prepend, use_c_bert)
     print(test_size)
     remaining_size = 250
     accuracyOnt = 0.87
@@ -71,6 +102,10 @@ def main(_):
         print('train acc = {:.4f}, test acc={:.4f}, remaining size={}'.format(accuracyOnt, accuracyOnt, remaining_size))
     else:
         if shortCutOnt == True:
+            #2015
+            #accuracyOnt = 0.8277
+            #remaining_size = 301
+            #2016
             accuracyOnt = 0.8682
             remaining_size = 248
             test = FLAGS.remaining_test_path

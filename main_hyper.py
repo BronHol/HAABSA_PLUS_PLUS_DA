@@ -1,9 +1,10 @@
 import tensorflow as tf
-import lcrModelAlt
-import lcrModel
-import lcrModelInverse
-import svmModel
-import cabascModel
+#import lcrModelAlt
+#import lcrModel
+#import lcrModelInverse
+#import svmModel
+#import cabascModel
+import lcrModelAlt_hierarchical_v4
 
 from OntologyReasoner import OntReasoner
 from loadData import *
@@ -22,7 +23,7 @@ import traceback
 from bson import json_util
 import json
 
-train_size, test_size, train_polarity_vector, test_polarity_vector = loadHyperData(FLAGS, False)
+train_size, test_size, train_polarity_vector, test_polarity_vector = loadHyperData(FLAGS, True)
 remaining_size = 248
 accuracyOnt = 0.87
 
@@ -31,11 +32,14 @@ eval_num = 0
 best_loss = None
 best_hyperparams = None
 lcrspace = [
-                hp.choice('learning_rate',[0.001,0.005, 0.02, 0.05, 0.06, 0.07, 0.08, 0.09, 0.01, 0.1]),
-                hp.quniform('keep_prob', 0.25, 0.75, 0.1),
-                hp.choice('momentum',    [ 0.85, 0.9, 0.95, 0.99 ]),
-                hp.choice('l2',    [ 0.00001, 0.0001, 0.001, 0.01, 0.1 ]),
+                hp.loguniform('learning_rate', np.log(0.01), np.log(0.1)),
+                hp.quniform('keep_prob', 0.45, 0.75, 0.1),
+                hp.choice('momentum', [0.85, 0.9, 0.95]),
+                #hp.choice('momentum', [0.85, 0.9, 0.95, 0.99]),
+                hp.choice('l2', [0.0001, 0.001]),
+                #hp.choice('l2', [0.00001, 0.0001, 0.001, 0.01, 0.1]),
             ]
+
 cabascspace = [
                 hp.choice('learning_rate',[0.001,0.005, 0.02, 0.05, 0.06, 0.07, 0.08, 0.09, 0.01, 0.1]),
                 hp.quniform('keep_prob', 0.25, 0.75, 0.01),
@@ -115,7 +119,7 @@ def lcr_alt_objective(hyperparams):
     (learning_rate, keep_prob, momentum, l2) = hyperparams
     print(hyperparams)
 
-    l, pred1, fw1, bw1, tl1, tr1 = lcrModelAlt.main(FLAGS.hyper_train_path, FLAGS.hyper_eval_path, accuracyOnt, test_size, remaining_size, learning_rate, keep_prob, momentum, l2)
+    l, pred1, fw1, bw1, tl1, tr1 = lcrModelAlt_hierarchical_v4.main(FLAGS.hyper_train_path, FLAGS.hyper_eval_path, accuracyOnt, test_size, remaining_size, learning_rate, keep_prob, momentum, l2)
     tf.reset_default_graph()
 
     # Save training results to disks with unique filenames
